@@ -25,9 +25,11 @@ class Block(object):
         self.transactions = transactions
         self.transactions_hash = self._calculate_merkle_tree_hash()
 
+
     def get_block_hash(self):
         block_string = "{}{}{}{}{}".format(self.index, self.nonce, self.previous_hash, self.transactions_hash, self.timestamp)
         return hashlib.sha256(block_string.encode()).hexdigest()
+
 
     def get_block_dict(self):
         block_dict = {
@@ -40,8 +42,10 @@ class Block(object):
         }
         return block_dict
 
+
     def __repr__(self):
         return "{} - {} - {} - {} - {}".format(self.index, self.nonce, self.previous_hash, self.transactions_hash, self.timestamp)
+
 
     def _calculate_merkle_tree_hash(self):
         if len(self.transactions) == 0:
@@ -75,15 +79,28 @@ class BlockChain(object):
         # difficulty for PoW
         self._difficulty = b"00000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
 
+
     ########## Property Functions ##########
 
     def get_serialized_chain(self):
         return [vars(block) for block in self.chain]
 
+
     def get_last_block(self):
         return self.chain[-1]
 
+
     ########## Utility Functions ##########
+
+    def _create_genesis_block(self):
+        genesis_block = Block(
+            index = 0,
+            nonce = 0,
+            previous_hash = 0,
+            transactions = []
+        )
+        self.chain.append(genesis_block)
+
 
     def create_new_block(self, nonce, previous_hash, transactions = []):
         block = Block(
@@ -94,15 +111,24 @@ class BlockChain(object):
         )
         return block
 
-    def _create_genesis_block(self):
-        genesis_block = Block(
-            index = 0,
-            nonce = 0,
-            previous_hash = 0,
-            transactions = []
-        )
-        self.chain.append(genesis_block)
-    
+
+    def create_new_transaction(self, sender, receiver, amount, timestamp = None):
+        # generate transaction
+        temp_timestamp = timestamp or time.time()
+        new_transaction = {
+            'sender': sender,
+            'receiver': receiver,
+            'amount': amount,
+            'timestamp': temp_timestamp
+        }
+
+        # add transaction in own transaction pool
+        if new_transaction not in self.transaction_pool:
+            self.transaction_pool.append(new_transaction)
+
+        return temp_timestamp
+
+
     def find_nonce(self, new_block):
         # PoW
         mining_count = 0
@@ -114,12 +140,13 @@ class BlockChain(object):
                 mining_count += 1
         return mining_count
 
+
     def mine_block(self, miner_address):
         # generate a new block and add coinbase
         last_block = self.get_last_block()
         new_block = self.create_new_block(0, last_block.get_block_hash(), [{
             'sender': 0,
-            'recipient': miner_address,
+            'receiver': miner_address,
             'amount': 1,
             'timestamp': time.time()
         }])
@@ -140,20 +167,12 @@ class BlockChain(object):
         # upload to blockchain
         self.chain.append(new_block)
 
-        # send to other nodes
-        pass
-
         return new_block
 
-    def create_new_transaction(self, sender, recipient, amount, timestamp = None):
-        temp_timestamp = timestamp or time.time()
-        self.transaction_pool.append({
-            'sender': sender,
-            'recipient': recipient,
-            'amount': amount,
-            'timestamp': temp_timestamp
-        })
-        return temp_timestamp
+
+    def add_node(self, address):
+        self.nodes.add(address)
+        return self.nodes
 
     # @staticmethod
     # def is_valid_block(block, previous_block):
@@ -214,11 +233,6 @@ class BlockChain(object):
     #         previous_block = block
     #         current_index += 1
 
-    #     return True
-
-
-    # def create_node(self, address):
-    #     self.nodes.add(address)
     #     return True
 
     # @staticmethod

@@ -1,4 +1,5 @@
 import requests
+import json
 
 from blockchain2 import BlockChain
 
@@ -32,15 +33,15 @@ def class_tests():
 # --------------------------------- Testing Blockchain APIs --------------------------------------------
 
 
-# def register_node(node_addr, parent_server):
-#     resp = requests.post(parent_server + '/register-node', json={'address': node_addr})
-#     print(resp)
-#     print("On Server {}: Node-{} has been registered successfully!\n".format(parent_server, node_addr))
-#     return resp
+def register_node(node_address, parent_server):
+    resp = requests.post(parent_server + '/receive-registration', json={'address': node_address}).json()
+    print(resp)
+    print("On Server {}: Node-{} has been registered successfully!\n".format(parent_server, resp["current_nodes"]))
+    return resp
 
 
 def create_transaction(server, data):
-    resp = requests.post(server + '/create-transaction', json=data).json()
+    resp = requests.post(server + '/receive-transaction', json=data).json()
     print(resp)
     print("On Server {}: Transaction has been processed!\n".format(server))
     return resp
@@ -55,7 +56,13 @@ def mine_block(server):
 
 def get_server_chain(server):
     resp = requests.get(server + '/chain').json()
-    print("On Server {}: Chain is-\n{}\n".format(server, resp))
+    print("On Server {}: Chain is:\n{}\n".format(server, resp["chain"]))
+    return resp
+
+
+def get_server_transaction_pool(server):
+    resp = requests.get(server + '/transaction-pool').json()
+    print("On Server {}: transaction pool is:\n{}\n".format(server, resp["transaction_pool"]))
     return resp
 
 
@@ -70,11 +77,13 @@ def get_server_chain(server):
 def api_tests():
 
     server1 = 'http://127.0.0.1:5000'
-    # server2 = 'http://127.0.0.1:5001'
+    server2 = 'http://127.0.0.1:5001'
 
-    # register_node(server2, server1)  # server2 node will be register inside server1
+    register_node(server2, server1)  # server2 node will be register inside server1
 
-    create_transaction(server1, {'sender': 'I', 'recipient': 'you', 'amount': 3})
+    create_transaction(server1, {'sender': 'I', 'receiver': 'you', 'amount': 3})
+
+    get_server_transaction_pool(server1)
 
     mine_block(server1)  # Mined a new block on server2
 
@@ -84,6 +93,8 @@ def api_tests():
     # sync_chain(server1)  # updating server1's chain with neighbour node's chain
 
     get_server_chain(server1)  # server1's chain after syncing
+
+    get_server_transaction_pool(server1)
 
 
 if __name__ == "__main__":

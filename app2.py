@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 import requests
-from flask import Flask, jsonify, url_for, request
+from flask import Flask, jsonify, url_for, request, render_template
 
 from blockchain2 import BlockChain
 
@@ -9,22 +9,46 @@ from blockchain2 import BlockChain
 app = Flask(__name__)
 
 blockchain = BlockChain()
+node_address = None
 
-node_address = uuid4().hex  # Unique address for current node
+
+@app.route('/')
+def index():
+    return render_template('index.html')
 
 
-@app.route('/create-transaction', methods=['POST'])
+@app.route('/receive-registration', methods=['POST'])
+def register_node():
+    """
+    Receive other node's registration.
+    register:
+    {
+        'address': node_address
+    }
+    """
+    node_data = request.get_json()
+
+    # add to current nodes
+    current_nodes = blockchain.add_node(node_data.get('address'))
+
+    response = {
+        'message': 'New node has been added',
+        'current_nodes': list(current_nodes),
+    }
+    return jsonify(response)
+
+
+@app.route('/receive-transaction', methods=['POST'])
 def create_transaction():
     """
-    Input Payload:
+    transaction:
     {
         "sender": "address_1"
-        "recipient": "address_2",
+        "receiver": "address_2",
         "amount": amount
         "timestamp": timestamp
     }
     """
-
     transaction_data = request.get_json()
     transaction_time = blockchain.create_new_transaction(**transaction_data)
 
@@ -33,6 +57,13 @@ def create_transaction():
         'transaction_time': transaction_time
     }
     return jsonify(response)
+
+
+@app.route("/registration", methods=['GET'])
+def registration():
+    first_node = "127.0.0.1:5000"
+    resp = requests.post(first_node + '/receive-registration', json={'address': node_address}).json()
+    return message
 
 
 @app.route('/mine', methods=['GET'])
@@ -53,19 +84,13 @@ def get_full_chain():
     return jsonify(response)
 
 
-# @app.route('/register-node', methods=['POST'])
-# def register_node():
+@app.route('/transaction-pool', methods=['GET'])
+def get_transaction_pool():
+    response = {
+        'transaction_pool': blockchain.transaction_pool
+    }
+    return jsonify(response)
 
-#     node_data = request.get_json()
-
-#     blockchain.create_node(node_data.get('address'))
-
-#     response = {
-#         'message': 'New node has been added',
-#         'node_count': len(blockchain.nodes),
-#         'nodes': list(blockchain.nodes),
-#     }
-#     return jsonify(response), 201
 
 
 # @app.route('/sync-chain', methods=['GET'])
@@ -108,4 +133,5 @@ if __name__ == '__main__':
     parser.add_argument('-port', default=5000, type=int)
     args = parser.parse_args()
 
+    node_address = args.host + ":" + str(args.port)
     app.run(host=args.host, port=args.port, debug=True)
