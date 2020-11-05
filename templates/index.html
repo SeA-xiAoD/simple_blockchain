@@ -1,31 +1,106 @@
 <html>
-<body>
+<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
+<script>
+    function load()
+    {
+        var current_node_address = document.getElementById("current_node_address");
+        var message;
+        $.ajax(
+        {
+            type: "GET",
+            url: "/current-address",
+            dataType: "json",
+            success: function(msg)
+            {
+                console.log(msg);
+                current_node_address.innerText += msg["current_address"];
+            },
+            error: function (xhr, status, error) {
+            console.log(error);
+         }
+        });
+    }
+</script>
+<body onload="load();">
 
 <h1>Simple Blockchain</h1>
 
+<h2 id="current_node_address" >Current node address:&nbsp;</h2>
 
-<input type="button" value="Registration"  onclick="registration()"/>
-
-
+<div>
+    <input type="button" value="Registration" onclick="registration()"/>
+</div>
+<div>
+    <input type="button" value="Mine" onclick="mine()"/>
+</div>
+<div>
+    <form id="transaction" target="iframe" method="get" >
+    <!-- <form id="transaction" onsubmit="return false" method="get"> -->
+        Sender：<input type="text" name="sender" size="20"><br/>
+        Receiver：<input type="text" name="receiver" size="20"><br/>
+        Amount：<input type="text" name="amount" size="20"><br/>
+        <br/>
+        <input type="button" onclick="submit()" value="Submit">
+    </form>
+    <iframe id="iframe" name="iframe" style="display:none;"></iframe>
+</div>
 </body>
-<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
 <script type="text/javascript">
     function registration()
     {
         $.ajax(
-       {
-          type: "GET",
-          url: "/registration",
-          dataType: "html",
-          success: function(msg)
-          {
-              console.log(msg);
-          },
-          error: function (xhr, status, error) {
-             console.log(error);
-         }
-       });
+        {
+            type: "GET",
+            url: "/registration",
+            dataType: "html",
+            success: function(msg)
+            {
+                console.log(msg);
+            },
+            error: function (xhr, status, error) {
+                console.log(error);
+            }
+        });
     }
+
+    function mine()
+    {
+        $.ajax(
+        {
+            type: "GET",
+            url: "/mine",
+            dataType: "html",
+            success: function(msg)
+            {
+                console.log(msg);
+            },
+            error: function (xhr, status, error) {
+            console.log(error);
+            }
+        });
+    }
+
+    function submit() {
+        console.log(1111)
+        console.log($('#transaction').serialize())
+        $.ajax({
+            type: "POST",
+            url: "/transaction" ,
+            dataType: "json",
+            data: $('#transaction').serialize(),
+            success: function (result) {
+                console.log(result);
+                if (result.resultCode == 200) {
+                    alert("SUCCESS");
+                }
+                ;
+            },
+            error : function() {
+                alert("异常！");
+            }
+        });
+    }
+
 </script>
 
 </html>

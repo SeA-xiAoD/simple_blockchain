@@ -53,7 +53,8 @@ class Block(object):
         else:
             hash_list = []
             for i in range(len(self.transactions)):
-                hash_list.append(hashlib.sha256(str(self.transactions[i]).encode()).hexdigest())
+                ordered_transactions = sorted(self.transactions[i].items(), key=lambda d:d[0])
+                hash_list.append(hashlib.sha256(str(ordered_transactions).encode()).hexdigest())
             while len(hash_list) != 1:
                 temp_hash_list = []
                 # simply add two hash, and then calculate the hash of the sum
@@ -64,7 +65,6 @@ class Block(object):
                         temp_hash_list.append(hashlib.sha256(hash_list[j].encode() + hash_list[j+1].encode()).hexdigest())
                 hash_list = temp_hash_list
             return hash_list[0]
-
 
 
 
@@ -90,6 +90,10 @@ class BlockChain(object):
         return self.chain[-1]
 
 
+    def get_diffcuilty(self):
+        return self._difficulty
+
+
     ########## Utility Functions ##########
 
     def _create_genesis_block(self):
@@ -104,7 +108,7 @@ class BlockChain(object):
 
     def create_new_block(self, nonce, previous_hash, transactions = []):
         block = Block(
-            index = len(self.chain),
+            index = self.chain[-1].index + 1,
             nonce = nonce,
             previous_hash = previous_hash,
             transactions = transactions + list(self.transaction_pool)
@@ -253,7 +257,7 @@ if __name__ == "__main__":
     print(chain.transaction_pool)
     chain.create_new_transaction("B", "A", 12)
     print(chain.transaction_pool)
-    chain.mine_block("C")
+    # chain.mine_block("C")
     print(chain.chain)
     print(chain.transaction_pool)
     
