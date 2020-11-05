@@ -100,14 +100,16 @@ def receive_transaction():
     return jsonify(response)
 
 
-@app.route('/transaction', methods=['POST'])
+@app.route('/transaction', methods=['POST', 'GET'])
 def create_transaction():
     transaction_data = request.get_json()
-    # transaction_time = blockchain.create_new_transaction(**transaction_data)
+    print(request.json)
+    print(transaction_data)
+    transaction_time = blockchain.create_new_transaction(**transaction_data)
 
     response = {
         'message': 'Transaction has been received successfully',
-        # 'transaction_time': transaction_time
+        'transaction_time': transaction_time
     }
     return jsonify(response)
 
