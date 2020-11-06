@@ -3,33 +3,129 @@
 <head>
     <meta charset="utf-8">
     <title>Simple Blockchain</title>
-    <script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
+    <link rel="stylesheet" href="/static/css/index.css">
+    <link href="/static/css/custom.css" type="text/css" rel="stylesheet"/>
+    <script src="/static/js/jquery.js"></script>
 </head>
     
 <body onload="load();">
 
-    <h1>Simple Blockchain</h1>
+    <!-- top -->
+    <div class="header header-show">
+        <div class="w1200">
+            <div class="header-inner clearfix">
+                <div class="header-nav">
+                    <ul class="header-nav-uls">
+                        <li class="header-nav-item on">
+                            <a class="header-nav-link" href="/index.html">Simple Blockchain</a>
+                        </li>
+                        <li class="header-nav-item fr">
+                            <a id="current_node_address" class="header-nav-link" href="/index.html">Current node address:</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- top -->
 
-    <h2 id="current_node_address">Current node address:&nbsp;</h2>
+    <div class="mt40">
+        <div class="w1200">
+            <div>
+                <input class="hd-btn" type="button" value="Registration" onclick="registration()" />
+                <input class="hd-btn" type="button" value="Mine" onclick="mine()" />
+            </div>
+            <div class="mt20">
+                <form id="transaction" target="iframe" method="get">
+                    <span class="b">Transaction:</span></br>
+                    Sender：<input type="text" name="sender" size="18">
+                    Receiver：<input type="text" name="receiver" size="18">
+                    Amount：<input type="text" name="amount" size="18">
+                    &nbsp;
+                    <button class="hd-btn" type="button" onclick="transaction()">Submit</button>
+                </form>
+                <iframe id="iframe" name="iframe" style="display:none;"></iframe>
+            </div>
+            <div class="mod-data mt40">
+                <div class="data-left data-card">
+                    <h1 class="data-hd">Blockchain</h1>
+                    <div class="data-bd">
+                        <ul id="blockchain"></ul>
+                    </div>
+                </div>
+                <div class="data-right data-card">
+                    <h1 class="data-hd">Transaction Pool</h1>
+                    <div class="data-bd">
+                        <ul id="transaction_pool"></ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    <div>
-        <input type="button" value="Registration" onclick="registration()" />
+    <!-- footer -->
+    <div class="footer mt90">
+        <span>Copyright &copy; 2020 SeAxiAoD & Doris Lee</span>
     </div>
-    <div>
-        <input type="button" value="Mine" onclick="mine()" />
-    </div>
-    <div>
-        <form id="transaction" target="iframe" method="get">
-            <!-- <form id="transaction" onsubmit="return false" method="get"> -->
-            Sender：<input type="text" name="sender" size="20"><br/>
-            Receiver：<input type="text" name="receiver" size="20"><br/>
-            Amount：<input type="text" name="amount" size="20"><br/>
-            <br/>
-            <button type="button" onclick="transaction()">Submit</button>
-        </form>
-        <iframe id="iframe" name="iframe" style="display:none;"></iframe>
-    </div>
+    <!-- footer -->
+
     <script type="text/javascript">
+        var time = setInterval(function() {
+            $.ajax({
+                url: './chain',
+                type: 'get',
+                success: function(received_data) {
+                    var _html = '';
+                    var data = received_data["chain"];
+                    $.each(data, function(i, item){
+                        _html += '<li>';
+                        _html += '    <table>';
+                        $.each(item,function(key,value) {
+                            if (key != "transactions") {
+                                _html += '        <tr>';
+                                _html += '            <td>' + key + '</td>';
+                                _html += '            <td>' + value + '</td>';
+                                _html += '        </tr>';
+                            }
+                            else {
+                                _html += '        <tr>';
+                                _html += '            <td>' + "#transactions" + '</td>';
+                                _html += '            <td>' + value.length + '</td>';
+                                _html += '        </tr>';
+                            } 
+                        });
+                        _html += '    </table>';
+                        _html += '</li>';
+                    })
+                    $('#blockchain').html(_html);
+                }
+            })
+        }, 1000);
+
+        var time = setInterval(function() {
+            $.ajax({
+                url: './transaction-pool',
+                type: 'get',
+                success: function(received_data) {
+                    var _html = '';
+                    var data = received_data["transaction_pool"];
+                    $.each(data, function(i, item){
+                        _html += '<li>';
+                        _html += '    <table>';
+                        $.each(item,function(key,value) {
+                            _html += '        <tr>';
+                            _html += '            <td>' + key + '</td>';
+                            _html += '            <td>' + value + '</td>';
+                            _html += '        </tr>';
+                        });
+                        _html += '    </table>';
+                        _html += '</li>';
+                    })
+                    $('#transaction_pool').html(_html);
+                }
+            })
+        }, 1000);
+
         function load() {
             var current_node_address = document.getElementById("current_node_address");
             var message;
@@ -82,11 +178,12 @@
                 "receiver": transaction_data[1].value,
                 "amount": transaction_data[2].value,
             }
-            console.log(transaction_json)
+            console.log(JSON.stringify(transaction_json))
             $.ajax({
                 type: "POST",
                 url: "/transaction",
                 dataType: "json",
+                contentType: "application/json",
                 data: JSON.stringify(transaction_json),
                 success: function (result) {
                     console.log(result);

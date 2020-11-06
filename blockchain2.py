@@ -130,7 +130,7 @@ class BlockChain(object):
         if new_transaction not in self.transaction_pool:
             self.transaction_pool.append(new_transaction)
 
-        return temp_timestamp
+        return new_transaction
 
 
     def find_nonce(self, new_block):

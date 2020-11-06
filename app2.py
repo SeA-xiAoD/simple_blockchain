@@ -91,25 +91,29 @@ def receive_transaction():
     }
     """
     transaction_data = request.get_json()
-    transaction_time = blockchain.create_new_transaction(**transaction_data)
+    new_transaction = blockchain.create_new_transaction(**transaction_data)
 
     response = {
         'message': 'Transaction has been received successfully',
-        'transaction_time': transaction_time
+        'transaction': new_transaction
     }
     return jsonify(response)
 
 
-@app.route('/transaction', methods=['POST', 'GET'])
+@app.route('/transaction', methods=['POST'])
 def create_transaction():
+    # create new transaction
     transaction_data = request.get_json()
-    print(request.json)
-    print(transaction_data)
-    transaction_time = blockchain.create_new_transaction(**transaction_data)
+    new_transaction = blockchain.create_new_transaction(**transaction_data)
+    
+    # broadcast transaction
+    for address in blockchain.nodes:
+        if address != node_address:
+            _ = requests.post('http://' + address + '/receive-transaction', json=new_transaction).json()
 
     response = {
-        'message': 'Transaction has been received successfully',
-        'transaction_time': transaction_time
+        'message': 'Transaction has been created successfully',
+        'transaction': new_transaction
     }
     return jsonify(response)
 
