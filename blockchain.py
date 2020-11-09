@@ -1,151 +1,188 @@
 import time
 import hashlib
 
+"""
+Logic:
+1. Create block 
+    (1) Initilize nonce 
+    (2) Insert previous hash
+    (3) Extract existing transactions from transaction pool
+2. Upload to blockchain
+    (1) Create block
+    (2) Find the suitable nonce. (PoW)
+    (3) Clear transaction pool and upload to blockchain
+    (4) Send to other nodes
+"""
+
 
 class Block(object):
 
-    def __init__(self, index, proof, previous_hash, transactions, timestamp=None):
-        self.index = index
-        self.proof = proof
+    def __init__(self, nonce, previous_hash, transactions, timestamp=None):
+        self.nonce = nonce
         self.previous_hash = previous_hash
-        self.transactions = transactions
         self.timestamp = timestamp or time.time()
+        self.transactions = transactions
+        self.transactions_hash = self._calculate_merkle_tree_hash()
 
-    @property
+
     def get_block_hash(self):
-        block_string = "{}{}{}{}{}".format(self.index, self.proof, self.previous_hash, self.transactions, self.timestamp)
+        block_string = "{}{}{}{}".format(self.nonce, self.previous_hash, self.transactions_hash, self.timestamp)
         return hashlib.sha256(block_string.encode()).hexdigest()
 
+
+    def get_block_dict(self):
+        block_dict = {
+            "nonce": self.nonce,
+            "previous_hash": self.previous_hash,
+            "timestamp": self.timestamp,
+            "transactions": self.transactions,
+            "transactions_hash": self.transactions_hash
+        }
+        return block_dict
+
+
     def __repr__(self):
-        return "{} - {} - {} - {} - {}".format(self.index, self.proof, self.previous_hash, self.transactions, self.timestamp)
+        return "{} - {} - {} - {}".format(self.nonce, self.previous_hash, self.transactions_hash, self.timestamp)
+
+
+    def _calculate_merkle_tree_hash(self):
+        if len(self.transactions) == 0:
+            return 0
+        else:
+            hash_list = []
+            for i in range(len(self.transactions)):
+                ordered_transactions = sorted(self.transactions[i].items(), key=lambda d:d[0])
+                hash_list.append(hashlib.sha256(str(ordered_transactions).encode()).hexdigest())
+            while len(hash_list) != 1:
+                temp_hash_list = []
+                # simply add two hash, and then calculate the hash of the sum
+                for j in range(0, len(hash_list), 2):
+                    if j + 1 == len(hash_list):
+                        temp_hash_list.append(hash_list[-1])
+                    else:
+                        temp_hash_list.append(hashlib.sha256(hash_list[j].encode() + hash_list[j+1].encode()).hexdigest())
+                hash_list = temp_hash_list
+            return hash_list[0]
+
 
 
 class BlockChain(object):
 
     def __init__(self):
         self.chain = []
-        self.current_node_transactions = []
+        self.transaction_pool = []
         self.nodes = set()
-        self.create_genesis_block()
+        self._create_genesis_block()
 
-    @property
+        # difficulty for PoW
+        self._difficulty = b"000007fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+
+
+    ########## Property Functions ##########
+
     def get_serialized_chain(self):
         return [vars(block) for block in self.chain]
 
-    def create_genesis_block(self):
-        self.create_new_block(proof=0, previous_hash=0)
 
-    def create_new_block(self, proof, previous_hash):
-        block = Block(
-            index=len(self.chain),
-            proof=proof,
-            previous_hash=previous_hash,
-            transactions=self.current_node_transactions
-        )
-        self.current_node_transactions = []  # Reset the transaction list
-
-        self.chain.append(block)
-        return block
-
-    @staticmethod
-    def is_valid_block(block, previous_block):
-        if previous_block.index + 1 != block.index:
-            return False
-
-        elif previous_block.get_block_hash != block.previous_hash:
-            return False
-
-        elif not BlockChain.is_valid_proof(block.proof, previous_block.proof):
-            return False
-
-        elif block.timestamp <= previous_block.timestamp:
-            return False
-
-        return True
-
-    def create_new_transaction(self, sender, recipient, amount):
-        self.current_node_transactions.append({
-            'sender': sender,
-            'recipient': recipient,
-            'amount': amount
-        })
-        return True
-
-    @staticmethod
-    def is_valid_transaction():
-        # Not Implemented
-        pass
-
-    @staticmethod
-    def create_proof_of_work(previous_proof):
-        """
-        Generate "Proof Of Work"
-
-        A very simple `Proof of Work` Algorithm -
-            - Find a number such that, sum of the number and previous POW number is divisible by 7
-        """
-        proof = previous_proof + 1
-        while not BlockChain.is_valid_proof(proof, previous_proof):
-            proof += 1
-
-        return proof
-
-    @staticmethod
-    def is_valid_proof(proof, previous_proof):
-        return (proof + previous_proof) % 7 == 0
-
-    @property
     def get_last_block(self):
         return self.chain[-1]
 
-    def is_valid_chain(self):
-        """
-        Check if given blockchain is valid
-        """
-        previous_block = self.chain[0]
-        current_index = 1
 
-        while current_index < len(self.chain):
+    def get_diffcuilty(self):
+        return self._difficulty
 
-            block = self.chain[current_index]
 
-            if not self.is_valid_block(block, previous_block):
-                return False
+    ########## Utility Functions ##########
 
-            previous_block = block
-            current_index += 1
+    def _create_genesis_block(self):
+        genesis_block = Block(
+            nonce = 0,
+            previous_hash = 0,
+            transactions = []
+        )
+        self.chain.append(genesis_block)
 
-        return True
+
+    def create_new_block(self, nonce, previous_hash, transactions = []):
+        block = Block(
+            nonce = nonce,
+            previous_hash = previous_hash,
+            transactions = transactions + list(self.transaction_pool)
+        )
+        return block
+
+
+    def create_new_transaction(self, sender, receiver, amount, timestamp = None):
+        # generate transaction
+        temp_timestamp = timestamp or time.time()
+        new_transaction = {
+            'sender': sender,
+            'receiver': receiver,
+            'amount': amount,
+            'timestamp': temp_timestamp
+        }
+
+        # add transaction in own transaction pool
+        if new_transaction not in self.transaction_pool:
+            self.transaction_pool.append(new_transaction)
+
+        return new_transaction
+
+
+    def find_nonce(self, new_block):
+        # PoW
+        mining_count = 0
+        while True:
+            if new_block.get_block_hash().encode() < self._difficulty:
+                break
+            else:
+                new_block.nonce += 1
+                mining_count += 1
+        return mining_count
+
 
     def mine_block(self, miner_address):
-        # Sender "0" means that this node has mined a new block
-        # For mining the Block(or finding the proof), we must be awarded with some amount(in our case this is 1)
-        self.create_new_transaction(
-            sender="0",
-            recipient=miner_address,
-            amount=1,
-        )
+        # generate a new block and add coinbase
+        last_block = self.get_last_block()
+        new_block = self.create_new_block(0, last_block.get_block_hash(), [{
+            'sender': 0,
+            'receiver': miner_address,
+            'amount': 1,
+            'timestamp': time.time()
+        }])
 
-        last_block = self.get_last_block
+        # PoW
+        print("\nStart mining...")
+        mining_count = self.find_nonce(new_block)
+        print("Mining times: %d" % mining_count)
+        print("Result hash value: " + new_block.get_block_hash())
+        print("Finish mining\n")
 
-        last_proof = last_block.proof
-        proof = self.create_proof_of_work(last_proof)
+        # clean transaction pool
+        temp_transaction_pool = self.transaction_pool.copy()
+        for a_transaction in temp_transaction_pool:
+            if a_transaction in new_block.transactions:
+                self.transaction_pool.remove(a_transaction)
 
-        last_hash = last_block.get_block_hash
-        block = self.create_new_block(proof, last_hash)
+        # upload to blockchain
+        self.chain.append(new_block)
 
-        return vars(block)  # Return a native Dict type object
+        return new_block
 
-    def create_node(self, address):
+
+    def add_node(self, address):
         self.nodes.add(address)
-        return True
+        return self.nodes
 
-    @staticmethod
-    def get_block_object_from_block_data(block_data):
-        return Block(
-            block_data['index'],
-            block_data['proof'],
-            block_data['previous_hash'],
-            block_data['transactions'],
-            timestamp=block_data['timestamp']
-        )
+
+if __name__ == "__main__":
+
+    chain = BlockChain()
+    print(chain.chain)
+    chain.create_new_transaction("A", "B", 12)
+    print(chain.transaction_pool)
+    chain.create_new_transaction("B", "A", 12)
+    print(chain.transaction_pool)
+    print(chain.chain)
+    print(chain.transaction_pool)
+    

@@ -34,6 +34,7 @@
             <div>
                 <input class="hd-btn" type="button" value="Registration" onclick="registration()" />
                 <input class="hd-btn" type="button" value="Mine" onclick="mine()" />
+                <input class="hd-btn" type="button" value="Automatic Mine" onclick="auto_mine()" />
             </div>
             <div class="mt20">
                 <form id="transaction" target="iframe" method="get">
@@ -100,7 +101,7 @@
                     $('#blockchain').html(_html);
                 }
             })
-        }, 1000);
+        }, 500);
 
         var time = setInterval(function() {
             $.ajax({
@@ -124,7 +125,7 @@
                     $('#transaction_pool').html(_html);
                 }
             })
-        }, 1000);
+        }, 500);
 
         function load() {
             var current_node_address = document.getElementById("current_node_address");
@@ -164,6 +165,21 @@
                     dataType: "html",
                     success: function (msg) {
                         console.log(msg);
+                    },
+                    error: function (xhr, status, error) {
+                        console.log(error);
+                    }
+                });
+        }
+
+        function auto_mine() {
+            $.ajax(
+                {
+                    type: "GET",
+                    url: "/mine",
+                    dataType: "html",
+                    success: function (msg) {
+                        auto_mine()
                     },
                     error: function (xhr, status, error) {
                         console.log(error);
